@@ -1,19 +1,37 @@
-# README
+# ExamMaster
 
-## About
+ExamMaster is a desktop application designed to help users prepare for exams. It allows importing questions, practicing under exam-like conditions, and reviewing performance.
 
-This is the official Wails React-TS template.
+## Features
 
-You can configure the project by editing `wails.json`. More information about the project settings can be found
-here: https://wails.io/docs/reference/project-config
+*   **Question Management:** Easily import and manage your own sets of questions.
+*   **Practice Mode:** Simulate an exam environment to test your knowledge.
+*   **Performance Analytics:** Track your progress and identify areas for improvement.
+*   **Review Mistakes:** A dedicated section to review questions you answered incorrectly.
+*   **Cross-Platform:** Built with Wails, it runs on Windows, macOS, and Linux.
 
-## Live Development
+## Tech Stack
 
-To run in live development mode, run `wails dev` in the project directory. This will run a Vite development
-server that will provide very fast hot reload of your frontend changes. If you want to develop in a browser
-and have access to your Go methods, there is also a dev server that runs on http://localhost:34115. Connect
-to this in your browser, and you can call your Go code from devtools.
+*   **Backend:** Go
+*   **Frontend:** React, TypeScript, Vite
+*   **Framework:** Wails v2
+
+## Development
+
+To run the application in live development mode with hot-reloading:
+
+```bash
+wails dev
+```
+
+This will start the application and automatically reload it when you make changes to the Go or TypeScript code.
 
 ## Building
 
-To build a redistributable, production mode package, use `wails build`.
+To build a production-ready, redistributable package for your platform:
+
+```bash
+wails build
+```
+
+The final application will be located in the `build/bin` directory.
