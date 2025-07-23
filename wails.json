@@ -1,0 +1,13 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "exammaster",
+  "outputfilename": "exammaster",
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm run build",
+  "frontend:dev:watcher": "pnpm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Hsieh-Ting Lin (林協霆)",
+    "email": "61491860+htlin222@users.noreply.github.com"
+  }
+}
