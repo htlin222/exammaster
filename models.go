@@ -93,3 +93,21 @@ type QuestionRecord struct {
 	TimeSpent  int      `json:"timeSpent"`
 	Marked     bool     `json:"marked"`
 }
+
+// DateRange represents a date range for filtering data
+type DateRange struct {
+	StartDate string `json:"startDate"`
+	EndDate   string `json:"endDate"`
+}
+
+// ExportOptions represents options for selective data export
+type ExportOptions struct {
+	IncludeQuestions      bool       `json:"includeQuestions"`
+	IncludeGroups         bool       `json:"includeGroups"`
+	IncludeSessions       bool       `json:"includeSessions"`
+	IncludeSettings       bool       `json:"includeSettings"`
+	IncludeWrongQuestions bool       `json:"includeWrongQuestions"`
+	GroupIDs              []string   `json:"groupIds"`        // Export questions from specific groups only
+	DateRange             *DateRange `json:"dateRange"`
+	Format                string     `json:"format"`          // JSON, CSV, etc.
+}

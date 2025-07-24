@@ -1,5 +1,19 @@
 export namespace main {
 	
+	export class DateRange {
+	    startDate: string;
+	    endDate: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DateRange(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.startDate = source["startDate"];
+	        this.endDate = source["endDate"];
+	    }
+	}
 	export class ExportOptions {
 	    includeQuestions: boolean;
 	    includeGroups: boolean;
@@ -7,8 +21,7 @@ export namespace main {
 	    includeSettings: boolean;
 	    includeWrongQuestions: boolean;
 	    groupIds: string[];
-	    // Go type: struct { StartDate string "json:\"startDate\""; EndDate string "json:\"endDate\"" }
-	    dateRange?: any;
+	    dateRange?: DateRange;
 	    format: string;
 	
 	    static createFrom(source: any = {}) {
@@ -23,7 +36,7 @@ export namespace main {
 	        this.includeSettings = source["includeSettings"];
 	        this.includeWrongQuestions = source["includeWrongQuestions"];
 	        this.groupIds = source["groupIds"];
-	        this.dateRange = this.convertValues(source["dateRange"], Object);
+	        this.dateRange = this.convertValues(source["dateRange"], DateRange);
 	        this.format = source["format"];
 	    }
 	

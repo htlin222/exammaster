@@ -19,7 +19,8 @@ import {
   Tabs,
   Radio,
   Checkbox,
-  Tooltip
+  Tooltip,
+  Popover
 } from 'antd';
 import {
   EditOutlined,
@@ -300,14 +301,39 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ onRefresh }) =>
       dataIndex: 'tags',
       key: 'tags',
       width: '15%',
-      render: (tags: string[]) => (
-        <Space wrap>
-          {tags?.slice(0, 2).map(tag => (
-            <Tag key={tag} color="blue">{tag}</Tag>
-          ))}
-          {tags?.length > 2 && <Tag>+{tags.length - 2}</Tag>}
-        </Space>
-      )
+      render: (tags: string[]) => {
+        if (!tags || tags.length === 0) return '-';
+        
+        const visibleTags = tags.slice(0, 2);
+        const hiddenTags = tags.slice(2);
+        
+        return (
+          <Space wrap>
+            {visibleTags.map(tag => (
+              <Tag key={tag} color="blue">{tag}</Tag>
+            ))}
+            {hiddenTags.length > 0 && (
+              <Popover
+                content={
+                  <div style={{ maxWidth: 300 }}>
+                    <Space wrap>
+                      {hiddenTags.map(tag => (
+                        <Tag key={tag} color="blue">{tag}</Tag>
+                      ))}
+                    </Space>
+                  </div>
+                }
+                title="所有標籤"
+                trigger="click"
+              >
+                <Tag style={{ cursor: 'pointer' }} color="default">
+                  +{hiddenTags.length}
+                </Tag>
+              </Popover>
+            )}
+          </Space>
+        );
+      }
     },
     {
       title: '難度',

@@ -985,20 +985,6 @@ func (a *App) ExportUserData() (map[string]interface{}, error) {
 	return data, nil
 }
 
-// ExportOptions represents options for selective data export
-type ExportOptions struct {
-	IncludeQuestions      bool     `json:"includeQuestions"`
-	IncludeGroups         bool     `json:"includeGroups"`
-	IncludeSessions       bool     `json:"includeSessions"`
-	IncludeSettings       bool     `json:"includeSettings"`
-	IncludeWrongQuestions bool     `json:"includeWrongQuestions"`
-	GroupIDs              []string `json:"groupIds"`        // Export questions from specific groups only
-	DateRange             *struct {
-		StartDate string `json:"startDate"`
-		EndDate   string `json:"endDate"`
-	} `json:"dateRange"`
-	Format string `json:"format"` // "json" or "csv"
-}
 
 // ExportSelectiveData exports data based on specified options
 func (a *App) ExportSelectiveData(options ExportOptions) (map[string]interface{}, error) {
