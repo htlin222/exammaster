@@ -182,7 +182,7 @@ func (d *Database) CreateQuestion(question *Question) error {
 }
 
 func (d *Database) GetQuestions() ([]Question, error) {
-	query := `SELECT id, question, options, answer, explanation, tags, image_url, difficulty, source, [index], created_at, updated_at FROM questions ORDER BY created_at DESC`
+	query := `SELECT id, question, options, answer, explanation, tags, image_url, difficulty, source, [index], created_at, updated_at FROM questions ORDER BY COALESCE([index], 999999), created_at DESC`
 	
 	rows, err := d.db.Query(query)
 	if err != nil {
