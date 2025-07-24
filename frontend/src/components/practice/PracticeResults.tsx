@@ -352,6 +352,16 @@ const PracticeResults: React.FC<PracticeResultsProps> = ({
                     {item.isCorrect ? '正確' : '錯誤'}
                   </Tag>
                 </div>
+                <div>
+                  <Text type="secondary">
+                    您的答案: {formatAnswerDisplay(item.userAnswer || [], item.questionData)}
+                  </Text>
+                </div>
+                <div>
+                  <Text type="success">
+                    正確答案: {formatAnswerDisplay(item.questionData?.answer || [], item.questionData)}
+                  </Text>
+                </div>
               </Space>
             </List.Item>
           )}
