@@ -257,27 +257,39 @@ const QuestionImport: React.FC<QuestionImportProps> = ({ onImportComplete }) => 
     "tags": ["react", "javascript"],
     "difficulty": 2,
     "source": "React Documentation",
-    "group": "JavaScript Frameworks"
+    "group": "JavaScript Frameworks",
+    "index": 1
   }
 ]`}
               </pre>
               <p><strong>CSV Format:</strong> First row should contain column headers. Required and optional columns:</p>
               <ul style={{ fontSize: '12px', marginLeft: '20px' }}>
                 <li><strong>question</strong> (必填): 題目內容</li>
-                <li><strong>options</strong> (必填): JSON格式選項，支援引號轉義</li>
-                <li><strong>answer</strong> (必填): JSON格式答案，支援引號轉義</li>
+                <li><strong>options</strong> (必填): JSON格式選項陣列，每個選項包含 id 和 text</li>
+                <li><strong>answer</strong> (必填): JSON格式答案陣列，包含正確選項的 id</li>
                 <li><strong>explanation</strong> (選填): 題目解釋</li>
-                <li><strong>tags</strong> (選填): JSON格式標籤，支援引號轉義</li>
-                <li><strong>difficulty</strong> (選填): 難度 1-5</li>
+                <li><strong>tags</strong> (選填): JSON格式標籤陣列</li>
+                <li><strong>difficulty</strong> (選填): 難度等級 1-5</li>
                 <li><strong>source</strong> (選填): 題目來源</li>
+                <li><strong>group</strong> (選填): 群組名稱，會自動建立群組並加入題目</li>
+                <li><strong>index</strong> (選填): 題目順序編號</li>
               </ul>
+              <p style={{ fontSize: '12px', marginTop: '8px', color: '#666' }}>
+                <strong>注意:</strong> CSV中的JSON欄位需要使用雙引號轉義 ("" 表示一個雙引號字符 ")
+              </p>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                <strong>群組處理:</strong> 如果題目有 "group" 欄位，會自動建立/找到該群組並加入題目；否則加入到選擇的目標群組中
+              </p>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                <strong>順序排列:</strong> "index" 欄位可控制題目在群組內的顯示順序
+              </p>
               <p style={{ fontSize: '12px', marginTop: '8px' }}>
                 <strong>CSV範例:</strong>
               </p>
-              <pre style={{ fontSize: '10px', background: '#f8f8f8', padding: '8px', border: '1px solid #e8e8e8' }}>
-{`question,options,answer,explanation,tags,difficulty,source
-"What is React?","[{""id"":""a"",""text"":""A library""},{""id"":""b"",""text"":""A framework""}]","[""a""]","React is a JavaScript library","[""react"",""javascript""]",2,"Documentation"
-"什麼是Vue?","[{""id"":""a"",""text"":""框架""},{""id"":""b"",""text"":""函式庫""}]","[""a""]","Vue是漸進式框架","[""vue"",""frontend""]",2,"官方文件"`}
+              <pre style={{ fontSize: '10px', background: '#f8f8f8', padding: '8px', border: '1px solid #e8e8e8', whiteSpace: 'pre-wrap' }}>
+{`question,options,answer,explanation,tags,difficulty,source,group,index
+"What is React?","[{""id"":""a"",""text"":""A library""},{""id"":""b"",""text"":""A framework""},{""id"":""c"",""text"":""A language""}]","[""a""]","React is a JavaScript library for building user interfaces.","[""react"",""javascript""]",2,"React Documentation","JavaScript Frameworks",1
+"什麼是Vue?","[{""id"":""a"",""text"":""漸進式框架""},{""id"":""b"",""text"":""函式庫""},{""id"":""c"",""text"":""程式語言""}]","[""a""]","Vue是一個漸進式的JavaScript框架","[""vue"",""frontend""]",2,"Vue官方文件","JavaScript Frameworks",2`}
               </pre>
             </div>
           }

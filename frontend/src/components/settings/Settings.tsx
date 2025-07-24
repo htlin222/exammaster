@@ -366,7 +366,7 @@ const Settings: React.FC<SettingsProps> = () => {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item name="username" label="使用者名稱">
-              <Input placeholder="輸入您的名稱" prefix={<UserOutlined />} />
+              <Input placeholder="輸入您的名稱" prefix={<UserOutlined style={{ marginRight: 4 }} />} />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -386,7 +386,7 @@ const Settings: React.FC<SettingsProps> = () => {
           <Col span={8}>
             <Form.Item name="theme" label="主題">
               <Radio.Group>
-                <Radio value="light">淺色</Radio>
+                <Radio value="light" style={{ marginRight: 16 }}>淺色</Radio>
                 <Radio value="dark">深色</Radio>
               </Radio.Group>
             </Form.Item>
@@ -394,8 +394,8 @@ const Settings: React.FC<SettingsProps> = () => {
           <Col span={8}>
             <Form.Item name="fontSize" label="字體大小">
               <Radio.Group>
-                <Radio value="small">小</Radio>
-                <Radio value="medium">中</Radio>
+                <Radio value="small" style={{ marginRight: 16 }}>小</Radio>
+                <Radio value="medium" style={{ marginRight: 16 }}>中</Radio>
                 <Radio value="large">大</Radio>
               </Radio.Group>
             </Form.Item>
@@ -419,10 +419,10 @@ const Settings: React.FC<SettingsProps> = () => {
       <Card title="系統設定" size="small">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="saveHistory" valuePropName="checked">
-            <Switch /> 儲存練習記錄
+            <Switch style={{ marginRight: 8 }} /> 儲存練習記錄
           </Form.Item>
           <Form.Item name="shareAnonymousStats" valuePropName="checked">
-            <Switch /> 分享匿名統計資訊（幫助改善軟體）
+            <Switch style={{ marginRight: 8 }} /> 分享匿名統計資訊（幫助改善軟體）
           </Form.Item>
         </Space>
       </Card>
@@ -459,7 +459,7 @@ const Settings: React.FC<SettingsProps> = () => {
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item name="enableTimer" valuePropName="checked">
-              <Switch /> 啟用計時器
+              <Switch style={{ marginRight: 8 }} /> 啟用計時器
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -473,19 +473,19 @@ const Settings: React.FC<SettingsProps> = () => {
       <Card title="題目顯示" size="small">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="showExplanations" valuePropName="checked">
-            <Switch /> 顯示題目解釋
+            <Switch style={{ marginRight: 8 }} /> 顯示題目解釋
           </Form.Item>
           <Form.Item name="randomizeQuestions" valuePropName="checked">
-            <Switch /> 隨機排序題目
+            <Switch style={{ marginRight: 8 }} /> 隨機排序題目
           </Form.Item>
           <Form.Item name="randomizeOptions" valuePropName="checked">
-            <Switch /> 隨機排序選項
+            <Switch style={{ marginRight: 8 }} /> 隨機排序選項
           </Form.Item>
           <Form.Item name="showProgress" valuePropName="checked">
-            <Switch /> 顯示進度條
+            <Switch style={{ marginRight: 8 }} /> 顯示進度條
           </Form.Item>
           <Form.Item name="highlightCorrectAnswers" valuePropName="checked">
-            <Switch /> 高亮正確答案
+            <Switch style={{ marginRight: 8 }} /> 高亮正確答案
           </Form.Item>
         </Space>
       </Card>
@@ -505,7 +505,7 @@ const Settings: React.FC<SettingsProps> = () => {
       <Card title="時間設定" size="small">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="enableTimer" valuePropName="checked">
-            <Switch /> 啟用計時器
+            <Switch style={{ marginRight: 8 }} /> 啟用計時器
           </Form.Item>
           <Form.Item name="timePerQuestion" label="設定每題時間限制">
             <Row gutter={16}>
@@ -531,13 +531,13 @@ const Settings: React.FC<SettingsProps> = () => {
       <Card title="答題設定" size="small">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="allowSkipQuestions" valuePropName="checked">
-            <Switch /> 允許跳過題目
+            <Switch style={{ marginRight: 8 }} /> 允許跳過題目
           </Form.Item>
           <Form.Item name="allowMarkQuestions" valuePropName="checked">
-            <Switch /> 允許標記題目
+            <Switch style={{ marginRight: 8 }} /> 允許標記題目
           </Form.Item>
           <Form.Item name="showImmediateAnswers" valuePropName="checked">
-            <Switch /> 立即顯示正確答案
+            <Switch style={{ marginRight: 8 }} /> 立即顯示正確答案
           </Form.Item>
         </Space>
       </Card>
@@ -545,10 +545,10 @@ const Settings: React.FC<SettingsProps> = () => {
       <Card title="結果設定" size="small">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="saveHistory" valuePropName="checked">
-            <Switch /> 儲存練習記錄
+            <Switch style={{ marginRight: 8 }} /> 儲存練習記錄
           </Form.Item>
           <Form.Item name="showDetailedStats" valuePropName="checked">
-            <Switch /> 顯示詳細統計
+            <Switch style={{ marginRight: 8 }} /> 顯示詳細統計
           </Form.Item>
         </Space>
       </Card>
@@ -561,11 +561,11 @@ const Settings: React.FC<SettingsProps> = () => {
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="enableNotifications" valuePropName="checked">
             {/* TODO: 實作桌面通知功能 - 需要 Web Notification API 整合 */}
-            <Switch /> 啟用通知
+            <Switch style={{ marginRight: 8 }} /> 啟用通知
           </Form.Item>
           <Form.Item name="dailyReminder" valuePropName="checked">
             {/* TODO: 實作每日提醒功能 - 需要排程系統和通知觸發機制 */}
-            <Switch /> 每日學習提醒
+            <Switch style={{ marginRight: 8 }} /> 每日學習提醒
           </Form.Item>
           <Row gutter={16}>
             <Col span={12}>

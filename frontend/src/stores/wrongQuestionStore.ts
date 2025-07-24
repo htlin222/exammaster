@@ -136,11 +136,11 @@ export const useWrongQuestionStore = create<WrongQuestionStore>((set, get) => ({
 
   // Getters
   getWrongQuestionCount: () => {
-    return get().wrongQuestions.length;
+    return get().wrongQuestionsWithDetails.length;
   },
 
   getUnreviewedCount: () => {
-    return get().wrongQuestions.filter(wq => !wq.reviewedAt).length;
+    return get().wrongQuestionsWithDetails.filter(wq => !wq.wrongQuestion.reviewedAt).length;
   },
 
   getRecentlyAdded: (days: number = 7) => {

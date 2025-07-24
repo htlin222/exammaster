@@ -13,7 +13,8 @@ import {
   List,
   Divider,
   Alert,
-  Tooltip
+  Tooltip,
+  theme
 } from 'antd';
 import { 
   CheckCircleOutlined, 
@@ -41,6 +42,7 @@ const PracticeResults: React.FC<PracticeResultsProps> = ({
   onRestart, 
   onExit 
 }) => {
+  const { token } = theme.useToken();
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -316,8 +318,10 @@ const PracticeResults: React.FC<PracticeResultsProps> = ({
                   <div style={{ 
                     marginTop: 8, 
                     padding: 12, 
-                    backgroundColor: '#f6f6f6', 
-                    borderRadius: 4 
+                    backgroundColor: token.colorFillQuaternary, 
+                    borderRadius: token.borderRadius,
+                    border: `1px solid ${token.colorBorder}`,
+                    color: token.colorText
                   }}>
                     <Text strong>解釋: </Text>
                     <Text>{item.questionData.explanation}</Text>

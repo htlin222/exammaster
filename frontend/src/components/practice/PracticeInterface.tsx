@@ -11,7 +11,8 @@ import {
   Divider,
   Modal,
   Row,
-  Col
+  Col,
+  theme
 } from 'antd';
 import { 
   ClockCircleOutlined, 
@@ -42,6 +43,7 @@ const PracticeInterface: React.FC<PracticeInterfaceProps> = ({
   mode, 
   onFinish 
 }) => {
+  const { token } = theme.useToken();
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [currentAnswer, setCurrentAnswer] = useState<string[]>([]);
   const [showNavigationPanel, setShowNavigationPanel] = useState(false);
@@ -354,7 +356,14 @@ const PracticeInterface: React.FC<PracticeInterfaceProps> = ({
                 {currentQuestion.explanation && (
                   <div>
                     <Text strong>解釋：</Text>
-                    <div style={{ marginTop: 8, padding: 12, backgroundColor: '#f6f6f6', borderRadius: 4 }}>
+                    <div style={{ 
+                      marginTop: 8, 
+                      padding: 12, 
+                      backgroundColor: token.colorFillQuaternary, 
+                      borderRadius: token.borderRadius,
+                      border: `1px solid ${token.colorBorder}`,
+                      color: token.colorText
+                    }}>
                       <Text>{currentQuestion.explanation}</Text>
                     </div>
                   </div>

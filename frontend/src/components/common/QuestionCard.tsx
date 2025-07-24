@@ -8,7 +8,8 @@ import {
   Radio,
   Checkbox,
   Divider,
-  Image
+  Image,
+  theme
 } from 'antd';
 import {
   EditOutlined,
@@ -55,6 +56,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   className,
   style
 }) => {
+  const { token } = theme.useToken();
   const correctAnswers = Array.isArray(question.answer) 
     ? question.answer 
     : [question.answer];
@@ -194,9 +196,10 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
               <div style={{ 
                 marginTop: 8, 
                 padding: 12, 
-                backgroundColor: '#f6f6f6', 
-                borderRadius: 4,
-                border: '1px solid #d9d9d9'
+                backgroundColor: token.colorFillQuaternary, 
+                borderRadius: token.borderRadius,
+                border: `1px solid ${token.colorBorder}`,
+                color: token.colorText
               }}>
                 <Text>{question.explanation}</Text>
               </div>
