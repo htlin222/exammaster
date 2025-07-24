@@ -14,7 +14,7 @@ import {
 import { InboxOutlined, UploadOutlined, BookOutlined } from '@ant-design/icons';
 import type { UploadProps, UploadFile } from 'antd';
 import { useQuestionStore } from '../../stores/questionStore';
-import { ImportQuestions, InitializeDemoData } from '../../../wailsjs/go/main/App';
+import { ImportQuestions, ImportQuestionsFromCSV, InitializeDemoData } from '../../../wailsjs/go/main/App';
 
 const { Dragger } = Upload;
 const { Title, Text } = Typography;
@@ -39,42 +39,35 @@ const QuestionImport: React.FC<QuestionImportProps> = ({ onImportComplete }) => 
     reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
-        let jsonData: any[] = [];
 
         if (typeof file === 'object' && 'name' in file) {
           const fileName = file.name.toLowerCase();
           
-          if (fileName.endsWith('.json')) {
-            jsonData = JSON.parse(content);
-          } else if (fileName.endsWith('.csv')) {
-            // Simple CSV parser - you might want to use a library like papaparse
-            const lines = content.split('\n');
-            const headers = lines[0].split(',').map(h => h.trim());
-            
-            jsonData = lines.slice(1).filter(line => line.trim()).map(line => {
-              const values = line.split(',').map(v => v.trim());
-              const obj: any = {};
-              headers.forEach((header, index) => {
-                obj[header] = values[index] || '';
-              });
-              return obj;
-            });
-          }
-
-          if (jsonData.length === 0) {
-            throw new Error('No valid data found in file');
-          }
-
           setImporting(true);
-          
-          // Call backend import function
-          const result = await ImportQuestions(jsonData, selectedGroupId);
+          let result;
+
+          if (fileName.endsWith('.json')) {
+            // Parse JSON and use existing JSON import method
+            const jsonData = JSON.parse(content);
+            if (!Array.isArray(jsonData)) {
+              throw new Error('JSON file must contain an array of questions');
+            }
+            result = await ImportQuestions(jsonData, selectedGroupId);
+          } else if (fileName.endsWith('.csv')) {
+            // Use new CSV import method with proper parsing
+            result = await ImportQuestionsFromCSV(content, selectedGroupId);
+          } else {
+            throw new Error('Unsupported file format. Only JSON and CSV files are supported.');
+          }
           
           setImportResult(result);
           setImporting(false);
 
           if (result.success) {
             message.success(`Successfully imported ${result.imported} questions`);
+            if (result.duplicates > 0) {
+              message.warning(`${result.duplicates} duplicate questions were skipped`);
+            }
             onImportComplete?.();
             onSuccess?.(result);
           } else {
@@ -231,7 +224,7 @@ const QuestionImport: React.FC<QuestionImportProps> = ({ onImportComplete }) => 
               Click or drag file to this area to upload
             </p>
             <p className="ant-upload-hint">
-              Support for JSON and CSV files. Make sure your file follows the required format.
+              Support for JSON and CSV files with improved CSV parsing. Handles quotes, commas, and JSON fields properly.
             </p>
           </Dragger>
         </div>
@@ -268,17 +261,24 @@ const QuestionImport: React.FC<QuestionImportProps> = ({ onImportComplete }) => 
   }
 ]`}
               </pre>
-              <p><strong>CSV Format:</strong> First row should contain column headers. Supported columns:</p>
+              <p><strong>CSV Format:</strong> First row should contain column headers. Required and optional columns:</p>
               <ul style={{ fontSize: '12px', marginLeft: '20px' }}>
                 <li><strong>question</strong> (必填): 題目內容</li>
-                <li><strong>options</strong> (必填): JSON格式選項 [{`{"id":"a","text":"選項A"},{"id":"b","text":"選項B"}`}]</li>
-                <li><strong>answer</strong> (必填): JSON格式答案 ["a"] 或 ["a","b"]</li>
+                <li><strong>options</strong> (必填): JSON格式選項，支援引號轉義</li>
+                <li><strong>answer</strong> (必填): JSON格式答案，支援引號轉義</li>
                 <li><strong>explanation</strong> (選填): 題目解釋</li>
-                <li><strong>tags</strong> (選填): JSON格式標籤 ["tag1","tag2"]</li>
-                <li><strong>difficulty</strong> (選填): 難度 1-5 (系統會根據答題表現動態調整)</li>
+                <li><strong>tags</strong> (選填): JSON格式標籤，支援引號轉義</li>
+                <li><strong>difficulty</strong> (選填): 難度 1-5</li>
                 <li><strong>source</strong> (選填): 題目來源</li>
-                <li><strong>group</strong> (選填): 群組名稱 (若不存在會自動創建)</li>
               </ul>
+              <p style={{ fontSize: '12px', marginTop: '8px' }}>
+                <strong>CSV範例:</strong>
+              </p>
+              <pre style={{ fontSize: '10px', background: '#f8f8f8', padding: '8px', border: '1px solid #e8e8e8' }}>
+{`question,options,answer,explanation,tags,difficulty,source
+"What is React?","[{""id"":""a"",""text"":""A library""},{""id"":""b"",""text"":""A framework""}]","[""a""]","React is a JavaScript library","[""react"",""javascript""]",2,"Documentation"
+"什麼是Vue?","[{""id"":""a"",""text"":""框架""},{""id"":""b"",""text"":""函式庫""}]","[""a""]","Vue是漸進式框架","[""vue"",""frontend""]",2,"官方文件"`}
+              </pre>
             </div>
           }
           type="info"

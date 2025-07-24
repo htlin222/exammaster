@@ -36,7 +36,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { PracticeSession, Question, QuestionGroup } from '../../types';
 import { useQuestionStore } from '../../stores/questionStore';
-import { GetQuestions, GetQuestionGroups, SaveFileToDownloads } from '../../../wailsjs/go/main/App';
+import { GetQuestions, GetQuestionGroups, SaveFileToDownloads, GetWeakestTopics } from '../../../wailsjs/go/main/App';
 import { usePracticeStore } from '../../stores/practiceStore';
 import dayjs from 'dayjs';
 
@@ -152,7 +152,7 @@ const Analytics: React.FC<AnalyticsProps> = () => {
     setFilteredSessions(filtered);
   };
 
-  const calculateStats = () => {
+  const calculateStats = async () => {
     if (filteredSessions.length === 0) {
       setSessionStats(null);
       setQuestionStats([]);
@@ -165,13 +165,22 @@ const Analytics: React.FC<AnalyticsProps> = () => {
     const totalDuration = filteredSessions.reduce((sum, session) => sum + session.duration, 0);
     const accuracies = filteredSessions.map(session => session.accuracy);
 
+    // Get weakest topics from backend
+    let weakestTopics: string[] = [];
+    try {
+      const topicsData = await GetWeakestTopics();
+      weakestTopics = topicsData.map(topic => topic.topic as string);
+    } catch (error) {
+      console.error('Failed to get weakest topics:', error);
+    }
+
     const stats: SessionStats = {
       totalSessions: filteredSessions.length,
       totalQuestions,
       averageAccuracy: totalCorrect / totalQuestions * 100,
       averageDuration: totalDuration / filteredSessions.length,
       bestAccuracy: Math.max(...accuracies),
-      weakestTopics: [],
+      weakestTopics,
       recentTrend: calculateTrend()
     };
 

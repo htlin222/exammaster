@@ -35,7 +35,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { Question, QuestionGroup } from '../../types';
 import { useQuestionStore } from '../../stores/questionStore';
-import { GetQuestions, GetQuestionGroups, SaveFileToDownloads } from '../../../wailsjs/go/main/App';
+import { GetQuestions, GetQuestionGroups, SaveFileToDownloads, CreateQuestion, UpdateQuestion, DeleteQuestion } from '../../../wailsjs/go/main/App';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -73,7 +73,9 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ onRefresh }) =>
       filtered = filtered.filter(q =>
         q.question.toLowerCase().includes(lowercaseSearch) ||
         q.tags?.some(tag => tag.toLowerCase().includes(lowercaseSearch)) ||
-        q.source?.toLowerCase().includes(lowercaseSearch)
+        q.source?.toLowerCase().includes(lowercaseSearch) ||
+        q.options?.some(option => option.text.toLowerCase().includes(lowercaseSearch)) ||
+        q.explanation?.toLowerCase().includes(lowercaseSearch)
       );
     }
 
@@ -139,8 +141,9 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ onRefresh }) =>
 
   const handleDelete = async (questionId: string) => {
     try {
-      // await DeleteQuestion(questionId); // Method not available in backend
-      console.log('Delete question:', questionId);
+      // Delete from backend
+      await DeleteQuestion(questionId);
+      // Update frontend store
       deleteQuestion(questionId);
       message.success('Question deleted successfully');
     } catch (error) {
@@ -159,8 +162,9 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ onRefresh }) =>
         updatedAt: new Date().toISOString()
       };
 
-      // await UpdateQuestion(updatedQuestion); // Method not available in backend
-      console.log('Update question:', updatedQuestion);
+      // Update in backend
+      await UpdateQuestion(updatedQuestion);
+      // Update frontend store
       updateQuestion(currentQuestion.id, updatedQuestion);
       setEditModalVisible(false);
       setCurrentQuestion(null);
@@ -176,15 +180,32 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ onRefresh }) =>
       const values = await form.validateFields();
       
       const newQuestion: Question = {
-        id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: '', // Let backend generate ID
         ...values,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
-      // await CreateQuestion(newQuestion); // Method not available in backend
-      console.log('Create question:', newQuestion);
-      addQuestion(newQuestion);
+      // Create in backend - need to handle type conversion
+      const backendQuestion = {
+        ...newQuestion,
+        options: JSON.stringify(newQuestion.options),
+        answer: JSON.stringify(newQuestion.answer),
+        tags: JSON.stringify(newQuestion.tags || [])
+      };
+      const createdQuestion = await CreateQuestion(backendQuestion as any);
+      
+      // Convert backend response back to frontend format
+      const frontendQuestion: Question = {
+        ...createdQuestion,
+        options: JSON.parse(createdQuestion.options as any),
+        answer: JSON.parse(createdQuestion.answer as any),
+        tags: createdQuestion.tags ? JSON.parse(createdQuestion.tags as any) : [],
+        difficulty: createdQuestion.difficulty as (1 | 2 | 3 | 4 | 5 | undefined)
+      };
+      
+      // Update frontend store
+      addQuestion(frontendQuestion);
       setCreateModalVisible(false);
       form.resetFields();
       message.success('Question created successfully');
@@ -396,7 +417,7 @@ const QuestionManagement: React.FC<QuestionManagementProps> = ({ onRefresh }) =>
       <Row gutter={16} align="middle">
         <Col flex="300px">
           <Search
-            placeholder="搜尋題目、標籤或來源"
+            placeholder="搜尋題目、選項、解釋、標籤或來源"
             allowClear
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}

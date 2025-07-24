@@ -10,11 +10,23 @@ export function ClearDemoData():Promise<main.ImportResult>;
 
 export function CreatePracticeSession(arg1:string,arg2:string,arg3:number):Promise<main.PracticeSession>;
 
+export function CreateQuestion(arg1:main.Question):Promise<main.Question>;
+
 export function CreateQuestionGroup(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<main.QuestionGroup>;
+
+export function DeleteQuestion(arg1:string):Promise<void>;
+
+export function DeleteQuestionGroup(arg1:string):Promise<void>;
+
+export function ExportGroupAsCSV(arg1:string):Promise<string>;
+
+export function ExportSelectiveData(arg1:main.ExportOptions):Promise<Record<string, any>>;
 
 export function ExportUserData():Promise<Record<string, any>>;
 
 export function GetPracticeSessions():Promise<Array<main.PracticeSession>>;
+
+export function GetQuestionByID(arg1:string):Promise<main.Question>;
 
 export function GetQuestionGroups():Promise<Array<main.QuestionGroup>>;
 
@@ -26,6 +38,8 @@ export function GetUserSetting(arg1:string):Promise<any>;
 
 export function GetUserSettings():Promise<Record<string, any>>;
 
+export function GetWeakestTopics():Promise<Array<Record<string, any>>>;
+
 export function GetWrongQuestions():Promise<Array<main.WrongQuestion>>;
 
 export function GetWrongQuestionsForPractice():Promise<Array<main.Question>>;
@@ -35,6 +49,10 @@ export function GetWrongQuestionsWithDetails():Promise<Array<Record<string, any>
 export function Greet(arg1:string):Promise<string>;
 
 export function ImportQuestions(arg1:Array<Record<string, any>>,arg2:string):Promise<main.ImportResult>;
+
+export function ImportQuestionsFromCSV(arg1:string,arg2:string):Promise<main.ImportResult>;
+
+export function ImportUserData(arg1:Record<string, any>):Promise<main.ImportResult>;
 
 export function InitializeDemoData():Promise<main.ImportResult>;
 
@@ -51,6 +69,10 @@ export function SavePracticeSession(arg1:Record<string, any>):Promise<void>;
 export function SetUserSetting(arg1:string,arg2:any):Promise<void>;
 
 export function ToggleWrongQuestion(arg1:string,arg2:string):Promise<boolean>;
+
+export function UpdateQuestion(arg1:main.Question):Promise<void>;
+
+export function UpdateQuestionGroup(arg1:main.QuestionGroup):Promise<void>;
 
 export function UpdateUserSettings(arg1:Record<string, any>):Promise<void>;
 

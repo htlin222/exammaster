@@ -246,6 +246,36 @@ const PracticeResults: React.FC<PracticeResultsProps> = ({
     </Card>
   );
 
+  // Helper function to get option text by ID
+  const getOptionText = (questionData: Question | undefined, optionId: string): string => {
+    if (!questionData?.options) return optionId;
+    
+    try {
+      const options = typeof questionData.options === 'string' 
+        ? JSON.parse(questionData.options)
+        : questionData.options;
+      
+      if (Array.isArray(options)) {
+        const option = options.find(opt => opt.id === optionId);
+        return option?.text || optionId;
+      }
+    } catch (error) {
+      console.error('Error parsing options:', error);
+    }
+    
+    return optionId;
+  };
+
+  // Helper function to format answer display
+  const formatAnswerDisplay = (answerIds: string[], questionData: Question | undefined): string => {
+    if (!answerIds || answerIds.length === 0) return '未作答';
+    
+    return answerIds.map(id => {
+      const optionText = getOptionText(questionData, id);
+      return optionText !== id ? `${id} (${optionText})` : id;
+    }).join(', ');
+  };
+
   const renderIncorrectQuestions = () => {
     if (incorrectQuestions.length === 0) {
       return (
@@ -273,10 +303,14 @@ const PracticeResults: React.FC<PracticeResultsProps> = ({
                   </Text>
                 </div>
                 <div>
-                  <Text type="danger">您的答案: {(item.userAnswer || []).join(', ') || '未作答'}</Text>
+                  <Text type="danger">
+                    您的答案: {formatAnswerDisplay(item.userAnswer || [], item.questionData)}
+                  </Text>
                 </div>
                 <div>
-                  <Text type="success">正確答案: {(item.questionData?.answer || []).join(', ')}</Text>
+                  <Text type="success">
+                    正確答案: {formatAnswerDisplay(item.questionData?.answer || [], item.questionData)}
+                  </Text>
                 </div>
                 {item.questionData?.explanation && (
                   <div style={{ 

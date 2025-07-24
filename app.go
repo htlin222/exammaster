@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -117,8 +119,8 @@ func (a *App) ImportQuestions(data []map[string]interface{}, groupID string) Imp
 		q := &Question{
 			ID:          fmt.Sprintf("q_%d_%d_%d", time.Now().UnixNano(), rand.Int63(), i),
 			Question:    question,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
+			CreatedAt:   time.Now().Format(time.RFC3339),
+			UpdatedAt:   time.Now().Format(time.RFC3339),
 		}
 
 		// Set options
@@ -159,6 +161,11 @@ func (a *App) ImportQuestions(data []map[string]interface{}, groupID string) Imp
 			q.Source = source
 		}
 
+		if index, ok := item["index"].(float64); ok {
+			indexInt := int(index)
+			q.Index = &indexInt
+		}
+
 		// Save to database
 		if err := a.db.CreateQuestion(q); err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("Row %d: Failed to save question: %v", i+1, err))
@@ -190,8 +197,8 @@ func (a *App) ImportQuestions(data []map[string]interface{}, groupID string) Imp
 						Description: fmt.Sprintf("Auto-created group: %s", groupName),
 						Color:       "#1890ff",
 						Icon:        "folder",
-						CreatedAt:   time.Now(),
-						UpdatedAt:   time.Now(),
+						CreatedAt:   time.Now().Format(time.RFC3339),
+						UpdatedAt:   time.Now().Format(time.RFC3339),
 					}
 					if err := a.db.CreateQuestionGroup(newGroup); err == nil {
 						targetGroupID = newGroup.ID
@@ -237,8 +244,8 @@ func (a *App) CreateQuestionGroup(name, description, parentID, color, icon strin
 		Description: description,
 		Color:       color,
 		Icon:        icon,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   time.Now().Format(time.RFC3339),
+		UpdatedAt:   time.Now().Format(time.RFC3339),
 	}
 
 	if parentID != "" {
@@ -257,6 +264,49 @@ func (a *App) GetQuestionGroups() ([]QuestionGroup, error) {
 	return a.db.GetQuestionGroups()
 }
 
+// CreateQuestion creates a new question
+func (a *App) CreateQuestion(question Question) (*Question, error) {
+	// Generate ID if not provided
+	if question.ID == "" {
+		question.ID = fmt.Sprintf("q_%d_%d", time.Now().UnixNano(), rand.Int63())
+	}
+	
+	// Set timestamps
+	now := time.Now().Format(time.RFC3339)
+	question.CreatedAt = now
+	question.UpdatedAt = now
+	
+	// Save to database
+	if err := a.db.CreateQuestion(&question); err != nil {
+		return nil, fmt.Errorf("failed to create question: %v", err)
+	}
+	
+	return &question, nil
+}
+// UpdateQuestion updates an existing question
+func (a *App) UpdateQuestion(question Question) error {
+	// Set updated timestamp
+	question.UpdatedAt = time.Now().Format(time.RFC3339)
+	
+	// Update in database
+	if err := a.db.UpdateQuestion(&question); err != nil {
+		return fmt.Errorf("failed to update question: %v", err)
+	}
+	
+	return nil
+}
+// DeleteQuestion deletes a question by ID
+func (a *App) DeleteQuestion(questionID string) error {
+	if err := a.db.DeleteQuestion(questionID); err != nil {
+		return fmt.Errorf("failed to delete question: %v", err)
+	}
+	return nil
+}
+// GetQuestionByID gets a question by ID
+func (a *App) GetQuestionByID(questionID string) (*Question, error) {
+	return a.db.GetQuestionByID(questionID)
+}
+
 // Practice Session management methods
 
 // CreatePracticeSession creates a new practice session
@@ -265,9 +315,9 @@ func (a *App) CreatePracticeSession(groupID, mode string, totalQuestions int) (*
 		ID:             fmt.Sprintf("session_%d", time.Now().Unix()),
 		GroupID:        groupID,
 		Mode:           mode,
-		StartTime:      time.Now(),
+		StartTime:      time.Now().Format(time.RFC3339),
 		TotalQuestions: totalQuestions,
-		CreatedAt:      time.Now(),
+		CreatedAt:      time.Now().Format(time.RFC3339),
 	}
 
 	if err := a.db.CreatePracticeSession(session); err != nil {
@@ -287,7 +337,7 @@ func (a *App) SavePracticeSession(sessionData map[string]interface{}) error {
 		TotalQuestions: int(sessionData["totalQuestions"].(float64)),
 		CorrectCount:   int(sessionData["correctCount"].(float64)),
 		Duration:       int(sessionData["duration"].(float64)),
-		CreatedAt:      time.Now(),
+		CreatedAt:      time.Now().Format(time.RFC3339),
 	}
 
 	// Parse start time
@@ -296,7 +346,7 @@ func (a *App) SavePracticeSession(sessionData map[string]interface{}) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse start time: %v", err)
 		}
-		session.StartTime = startTime
+		session.StartTime = startTime.Format(time.RFC3339)
 	}
 
 	// Parse end time
@@ -305,7 +355,8 @@ func (a *App) SavePracticeSession(sessionData map[string]interface{}) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse end time: %v", err)
 		}
-		session.EndTime = &endTime
+		endTimeStr := endTime.Format(time.RFC3339)
+		session.EndTime = &endTimeStr
 	}
 
 	// Convert questions array to JSON details
@@ -934,6 +985,595 @@ func (a *App) ExportUserData() (map[string]interface{}, error) {
 	return data, nil
 }
 
+// ExportOptions represents options for selective data export
+type ExportOptions struct {
+	IncludeQuestions      bool     `json:"includeQuestions"`
+	IncludeGroups         bool     `json:"includeGroups"`
+	IncludeSessions       bool     `json:"includeSessions"`
+	IncludeSettings       bool     `json:"includeSettings"`
+	IncludeWrongQuestions bool     `json:"includeWrongQuestions"`
+	GroupIDs              []string `json:"groupIds"`        // Export questions from specific groups only
+	DateRange             *struct {
+		StartDate string `json:"startDate"`
+		EndDate   string `json:"endDate"`
+	} `json:"dateRange"`
+	Format string `json:"format"` // "json" or "csv"
+}
+
+// ExportSelectiveData exports data based on specified options
+func (a *App) ExportSelectiveData(options ExportOptions) (map[string]interface{}, error) {
+	data := make(map[string]interface{})
+	
+	// Export questions with filtering
+	if options.IncludeQuestions {
+		var questions []Question
+		var err error
+		
+		if len(options.GroupIDs) > 0 {
+			// Export questions from specific groups only
+			allQuestions := make([]Question, 0)
+			for _, groupID := range options.GroupIDs {
+				groupQuestions, err := a.db.GetQuestionsByGroup(groupID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get questions for group %s: %v", groupID, err)
+				}
+				allQuestions = append(allQuestions, groupQuestions...)
+			}
+			questions = allQuestions
+		} else {
+			// Export all questions
+			questions, err = a.db.GetQuestions()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get questions: %v", err)
+			}
+		}
+		
+		// Apply date filtering if specified
+		if options.DateRange != nil && options.DateRange.StartDate != "" && options.DateRange.EndDate != "" {
+			startDate, err := time.Parse("2006-01-02", options.DateRange.StartDate)
+			if err != nil {
+				return nil, fmt.Errorf("invalid start date format: %v", err)
+			}
+			endDate, err := time.Parse("2006-01-02", options.DateRange.EndDate)
+			if err != nil {
+				return nil, fmt.Errorf("invalid end date format: %v", err)
+			}
+			endDate = endDate.Add(24 * time.Hour) // Include the end date
+			
+			var filteredQuestions []Question
+			for _, q := range questions {
+				questionDate, err := time.Parse(time.RFC3339, q.CreatedAt)
+				if err == nil && questionDate.After(startDate) && questionDate.Before(endDate) {
+					filteredQuestions = append(filteredQuestions, q)
+				}
+			}
+			questions = filteredQuestions
+		}
+		
+		data["questions"] = questions
+	}
+	
+	// Export groups
+	if options.IncludeGroups {
+		if len(options.GroupIDs) > 0 {
+			// Export specific groups only
+			groups := make([]QuestionGroup, 0)
+			allGroups, err := a.db.GetQuestionGroups()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get groups: %v", err)
+			}
+			
+			groupIDSet := make(map[string]bool)
+			for _, id := range options.GroupIDs {
+				groupIDSet[id] = true
+			}
+			
+			for _, group := range allGroups {
+				if groupIDSet[group.ID] {
+					groups = append(groups, group)
+				}
+			}
+			data["groups"] = groups
+		} else {
+			// Export all groups
+			groups, err := a.db.GetQuestionGroups()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get groups: %v", err)
+			}
+			data["groups"] = groups
+		}
+	}
+	
+	// Export practice sessions with filtering
+	if options.IncludeSessions {
+		sessions, err := a.db.GetPracticeSessions()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get practice sessions: %v", err)
+		}
+		
+		// Apply date filtering if specified
+		if options.DateRange != nil && options.DateRange.StartDate != "" && options.DateRange.EndDate != "" {
+			startDate, err := time.Parse("2006-01-02", options.DateRange.StartDate)
+			if err != nil {
+				return nil, fmt.Errorf("invalid start date format: %v", err)
+			}
+			endDate, err := time.Parse("2006-01-02", options.DateRange.EndDate)
+			if err != nil {
+				return nil, fmt.Errorf("invalid end date format: %v", err)
+			}
+			endDate = endDate.Add(24 * time.Hour) // Include the end date
+			
+			var filteredSessions []PracticeSession
+			for _, s := range sessions {
+				sessionDate, err := time.Parse(time.RFC3339, s.CreatedAt)
+				if err == nil && sessionDate.After(startDate) && sessionDate.Before(endDate) {
+					filteredSessions = append(filteredSessions, s)
+				}
+			}
+			sessions = filteredSessions
+		}
+		
+		data["sessions"] = sessions
+	}
+	
+	// Export wrong questions
+	if options.IncludeWrongQuestions {
+		wrongQuestions, err := a.db.GetWrongQuestionsWithDetails()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get wrong questions: %v", err)
+		}
+		data["wrongQuestions"] = wrongQuestions
+	}
+	
+	// Export settings
+	if options.IncludeSettings {
+		settings, err := a.GetUserSettings()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get settings: %v", err)
+		}
+		data["settings"] = settings
+	}
+	
+	return data, nil
+}
+
+// ExportGroupAsCSV exports questions from a specific group in CSV format
+func (a *App) ExportGroupAsCSV(groupID string) (string, error) {
+	questions, err := a.db.GetQuestionsByGroup(groupID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get questions for group: %v", err)
+	}
+	
+	if len(questions) == 0 {
+		return "", fmt.Errorf("no questions found in the specified group")
+	}
+	
+	// Build CSV content
+	var csvBuilder strings.Builder
+	
+	// Write header
+	csvBuilder.WriteString("question,options,answer,explanation,tags,difficulty,source\n")
+	
+	// Write data rows
+	for _, q := range questions {
+		// Escape and format each field
+		question := escapeCsvField(q.Question)
+		options := escapeCsvField(string(q.Options))
+		answer := escapeCsvField(string(q.Answer))
+		explanation := escapeCsvField(q.Explanation)
+		tags := escapeCsvField(string(q.Tags))
+		difficulty := ""
+		if q.Difficulty != nil {
+			difficulty = fmt.Sprintf("%d", *q.Difficulty)
+		}
+		source := escapeCsvField(q.Source)
+		
+		csvBuilder.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s\n",
+			question, options, answer, explanation, tags, difficulty, source))
+	}
+	
+	return csvBuilder.String(), nil
+}
+
+// escapeCsvField properly escapes a field for CSV format
+func escapeCsvField(field string) string {
+	// If field contains comma, newline, or quote, wrap in quotes and escape quotes
+	if strings.Contains(field, ",") || strings.Contains(field, "\n") || strings.Contains(field, "\"") {
+		// Escape existing quotes by doubling them
+		escaped := strings.ReplaceAll(field, "\"", "\"\"")
+		return fmt.Sprintf("\"%s\"", escaped)
+	}
+	return field
+}
+
+// ImportQuestionsFromCSV imports questions from CSV content
+func (a *App) ImportQuestionsFromCSV(csvContent string, groupID string) ImportResult {
+	result := ImportResult{
+		Success:    true,
+		Imported:   0,
+		Errors:     []string{},
+		Duplicates: 0,
+	}
+
+	// Split into lines and handle different line endings
+	lines := strings.Split(strings.ReplaceAll(csvContent, "\r\n", "\n"), "\n")
+	if len(lines) < 2 {
+		result.Success = false
+		result.Errors = append(result.Errors, "CSV file must have at least a header row and one data row")
+		return result
+	}
+
+	// Parse header row
+	headers := parseCSVLine(lines[0])
+	if len(headers) == 0 {
+		result.Success = false
+		result.Errors = append(result.Errors, "Invalid CSV header row")
+		return result
+	}
+
+	// Validate required columns
+	requiredColumns := []string{"question", "options", "answer"}
+	columnIndices := make(map[string]int)
+	for i, header := range headers {
+		columnIndices[strings.TrimSpace(strings.ToLower(header))] = i
+	}
+
+	for _, required := range requiredColumns {
+		if _, exists := columnIndices[required]; !exists {
+			result.Success = false
+			result.Errors = append(result.Errors, fmt.Sprintf("Required column '%s' not found in CSV header", required))
+			return result
+		}
+	}
+
+	// Parse data rows
+	var questions []map[string]interface{}
+	for i, line := range lines[1:] {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue // Skip empty lines
+		}
+
+		values := parseCSVLine(line)
+		if len(values) != len(headers) {
+			result.Errors = append(result.Errors, fmt.Sprintf("Row %d: column count mismatch (expected %d, got %d)", i+2, len(headers), len(values)))
+			continue
+		}
+
+		// Build question map
+		questionData := make(map[string]interface{})
+		for j, value := range values {
+			if j < len(headers) {
+				key := strings.TrimSpace(strings.ToLower(headers[j]))
+				
+				// Handle JSON fields
+				if key == "options" || key == "answer" || key == "tags" {
+					if strings.TrimSpace(value) != "" {
+						var jsonValue interface{}
+						if err := json.Unmarshal([]byte(value), &jsonValue); err != nil {
+							result.Errors = append(result.Errors, fmt.Sprintf("Row %d: invalid JSON in column '%s': %v", i+2, key, err))
+							continue
+						}
+						questionData[key] = jsonValue
+					}
+				} else if key == "difficulty" {
+					if strings.TrimSpace(value) != "" {
+						difficulty, err := strconv.Atoi(strings.TrimSpace(value))
+						if err != nil || difficulty < 1 || difficulty > 5 {
+							result.Errors = append(result.Errors, fmt.Sprintf("Row %d: invalid difficulty value '%s' (must be 1-5)", i+2, value))
+							continue
+						}
+						questionData[key] = difficulty
+					}
+				} else {
+					questionData[key] = strings.TrimSpace(value)
+				}
+			}
+		}
+
+		// Validate required fields are present
+		validQuestion := true
+		for _, required := range requiredColumns {
+			if _, exists := questionData[required]; !exists || questionData[required] == "" {
+				result.Errors = append(result.Errors, fmt.Sprintf("Row %d: missing required field '%s'", i+2, required))
+				validQuestion = false
+			}
+		}
+
+		if validQuestion {
+			questions = append(questions, questionData)
+		}
+	}
+
+	if len(questions) == 0 {
+		result.Success = false
+		result.Errors = append(result.Errors, "No valid questions found in CSV file")
+		return result
+	}
+
+	// Import the questions using existing ImportQuestions method
+	importResult := a.ImportQuestions(questions, groupID)
+	result.Success = importResult.Success
+	result.Imported = importResult.Imported
+	result.Duplicates = importResult.Duplicates
+	result.Errors = append(result.Errors, importResult.Errors...)
+
+	return result
+}
+
+// parseCSVLine parses a single CSV line handling quotes and commas
+func parseCSVLine(line string) []string {
+	var fields []string
+	var current strings.Builder
+	inQuotes := false
+	
+	for i, char := range line {
+		switch char {
+		case '"':
+			if inQuotes && i+1 < len(line) && line[i+1] == '"' {
+				// Double quote - escaped quote character
+				current.WriteByte('"')
+				i++ // Skip next quote
+			} else {
+				// Toggle quote state
+				inQuotes = !inQuotes
+			}
+		case ',':
+			if inQuotes {
+				current.WriteRune(char)
+			} else {
+				// End of field
+				fields = append(fields, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(char)
+		}
+	}
+	
+	// Add the last field
+	fields = append(fields, current.String())
+	
+	return fields
+}
+
+// ImportUserData imports all user data from exported JSON
+func (a *App) ImportUserData(data map[string]interface{}) ImportResult {
+	result := ImportResult{
+		Success:    true,
+		Imported:   0,
+		Errors:     []string{},
+		Duplicates: 0,
+	}
+
+	// Validate data structure
+	if data["version"] == nil {
+		result.Success = false
+		result.Errors = append(result.Errors, "Invalid data format: missing version")
+		return result
+	}
+
+	// Import questions if present
+	if questionsData, ok := data["questions"].([]interface{}); ok {
+		log.Printf("Importing %d questions", len(questionsData))
+		for _, q := range questionsData {
+			if questionMap, ok := q.(map[string]interface{}); ok {
+				question := Question{
+					ID:          questionMap["id"].(string),
+					Question:    questionMap["question"].(string),
+					Explanation: questionMap["explanation"].(string),
+					Source:      questionMap["source"].(string),
+					CreatedAt:   questionMap["createdAt"].(string),
+					UpdatedAt:   questionMap["updatedAt"].(string),
+				}
+
+				// Handle JSON fields
+				if options, err := json.Marshal(questionMap["options"]); err == nil {
+					question.Options = options
+				}
+				if answer, err := json.Marshal(questionMap["answer"]); err == nil {
+					question.Answer = answer
+				}
+				if tags, err := json.Marshal(questionMap["tags"]); err == nil {
+					question.Tags = tags
+				}
+				if difficulty, ok := questionMap["difficulty"].(float64); ok {
+					diffInt := int(difficulty)
+					question.Difficulty = &diffInt
+				}
+				if imageURL, ok := questionMap["imageUrl"].(string); ok {
+					question.ImageURL = imageURL
+				}
+				if index, ok := questionMap["index"].(float64); ok {
+					indexInt := int(index)
+					question.Index = &indexInt
+				}
+
+				// Create question
+				if err := a.db.CreateQuestion(&question); err != nil {
+					result.Errors = append(result.Errors, fmt.Sprintf("Failed to import question %s: %v", question.ID, err))
+				} else {
+					result.Imported++
+				}
+			}
+		}
+	}
+
+	// Import groups if present
+	if groupsData, ok := data["groups"].([]interface{}); ok {
+		log.Printf("Importing %d groups", len(groupsData))
+		for _, g := range groupsData {
+			if groupMap, ok := g.(map[string]interface{}); ok {
+				group := QuestionGroup{
+					ID:          groupMap["id"].(string),
+					Name:        groupMap["name"].(string),
+					Description: groupMap["description"].(string),
+					Color:       groupMap["color"].(string),
+					Icon:        groupMap["icon"].(string),
+					CreatedAt:   groupMap["createdAt"].(string),
+					UpdatedAt:   groupMap["updatedAt"].(string),
+				}
+
+				if parentID, ok := groupMap["parentId"].(string); ok && parentID != "" {
+					group.ParentID = &parentID
+				}
+
+				// Create group
+				if err := a.db.CreateQuestionGroup(&group); err != nil {
+					result.Errors = append(result.Errors, fmt.Sprintf("Failed to import group %s: %v", group.ID, err))
+				} else {
+					result.Imported++
+
+					// Import question-group relations
+					if questionIds, ok := groupMap["questionIds"].([]interface{}); ok {
+						for _, qid := range questionIds {
+							if questionID, ok := qid.(string); ok {
+								a.db.AddQuestionToGroup(group.ID, questionID)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Import settings if present
+	if settingsData, ok := data["settings"].(map[string]interface{}); ok {
+		log.Printf("Importing %d settings", len(settingsData))
+		for key, value := range settingsData {
+			if err := a.db.SetSetting(key, value); err != nil {
+				result.Errors = append(result.Errors, fmt.Sprintf("Failed to import setting %s: %v", key, err))
+			} else {
+				result.Imported++
+			}
+		}
+	}
+
+	return result
+}
+
+// GetWeakestTopics analyzes user performance to identify weak topics
+func (a *App) GetWeakestTopics() ([]map[string]interface{}, error) {
+	// Get all practice sessions
+	sessions, err := a.db.GetPracticeSessions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get practice sessions: %v", err)
+	}
+
+	// Topic performance tracking
+	topicStats := make(map[string]struct {
+		total    int
+		correct  int
+		category string
+	})
+
+	// Analyze sessions
+	for _, session := range sessions {
+		if session.Details == nil {
+			continue
+		}
+
+		var questions []map[string]interface{}
+		if err := json.Unmarshal(session.Details, &questions); err != nil {
+			continue
+		}
+
+		for _, q := range questions {
+			questionID, ok := q["questionId"].(string)
+			if !ok {
+				continue
+			}
+
+			isCorrect, ok := q["isCorrect"].(bool)
+			if !ok {
+				continue
+			}
+
+			// Get question details to extract tags
+			question, err := a.db.GetQuestionByID(questionID)
+			if err != nil {
+				continue
+			}
+
+			// Parse tags
+			var tags []string
+			if question.Tags != nil {
+				json.Unmarshal(question.Tags, &tags)
+			}
+
+			// If no tags, use source as topic
+			if len(tags) == 0 {
+				if question.Source != "" {
+					tags = []string{question.Source}
+				} else {
+					tags = []string{"General"}
+				}
+			}
+
+			// Update stats for each tag/topic
+			for _, tag := range tags {
+				if stats, exists := topicStats[tag]; exists {
+					stats.total++
+					if isCorrect {
+						stats.correct++
+					}
+					topicStats[tag] = stats
+				} else {
+					correct := 0
+					if isCorrect {
+						correct = 1
+					}
+					topicStats[tag] = struct {
+						total    int
+						correct  int
+						category string
+					}{
+						total:    1,
+						correct:  correct,
+						category: "topic",
+					}
+				}
+			}
+		}
+	}
+
+	// Convert to result format and calculate accuracy
+	var weakestTopics []map[string]interface{}
+	for topic, stats := range topicStats {
+		if stats.total < 2 { // Skip topics with less than 2 questions
+			continue
+		}
+
+		accuracy := float64(stats.correct) / float64(stats.total) * 100
+		
+		result := map[string]interface{}{
+			"topic":        topic,
+			"totalAttempts": stats.total,
+			"correctCount":  stats.correct,
+			"accuracy":     accuracy,
+			"category":     stats.category,
+		}
+		
+		weakestTopics = append(weakestTopics, result)
+	}
+
+	// Sort by accuracy (ascending) to get weakest topics first
+	for i := 0; i < len(weakestTopics)-1; i++ {
+		for j := i + 1; j < len(weakestTopics); j++ {
+			if weakestTopics[i]["accuracy"].(float64) > weakestTopics[j]["accuracy"].(float64) {
+				weakestTopics[i], weakestTopics[j] = weakestTopics[j], weakestTopics[i]
+			}
+		}
+	}
+
+	// Return top 10 weakest topics
+	if len(weakestTopics) > 10 {
+		weakestTopics = weakestTopics[:10]
+	}
+
+	return weakestTopics, nil
+}
+
 // Wrong Questions management methods
 
 // AddWrongQuestion adds a question to the wrong questions list
@@ -941,7 +1581,7 @@ func (a *App) AddWrongQuestion(questionID string, notes string) error {
 	wrongQuestion := &WrongQuestion{
 		ID:         fmt.Sprintf("wrong_%d_%d", time.Now().UnixNano(), rand.Int63()),
 		QuestionID: questionID,
-		AddedAt:    time.Now(),
+		AddedAt:    time.Now().Format(time.RFC3339),
 		Notes:      notes,
 	}
 
@@ -966,7 +1606,7 @@ func (a *App) AddWrongQuestionsFromSession(sessionData map[string]interface{}) e
 						wrongQuestion := &WrongQuestion{
 							ID:         fmt.Sprintf("wrong_%d_%d", time.Now().UnixNano(), rand.Int63()),
 							QuestionID: questionID,
-							AddedAt:    time.Now(),
+							AddedAt:    time.Now().Format(time.RFC3339),
 							Notes:      "Added from practice session",
 						}
 						a.db.AddWrongQuestion(wrongQuestion)
@@ -1034,10 +1674,30 @@ func (a *App) ToggleWrongQuestion(questionID string, notes string) (bool, error)
 		wrongQuestion := &WrongQuestion{
 			ID:         fmt.Sprintf("wrong_%d_%d", time.Now().UnixNano(), rand.Int63()),
 			QuestionID: questionID,
-			AddedAt:    time.Now(),
+			AddedAt:    time.Now().Format(time.RFC3339),
 			Notes:      notes,
 		}
 		err = a.db.AddWrongQuestion(wrongQuestion)
 		return true, err
 	}
+}
+
+// UpdateQuestionGroup updates an existing question group
+func (a *App) UpdateQuestionGroup(group QuestionGroup) error {
+	// Set updated timestamp
+	group.UpdatedAt = time.Now().Format(time.RFC3339)
+	
+	// Update in database
+	if err := a.db.UpdateQuestionGroup(&group); err != nil {
+		return fmt.Errorf("failed to update question group: %v", err)
+	}
+	
+	return nil
+}
+// DeleteQuestionGroup deletes a question group by ID
+func (a *App) DeleteQuestionGroup(groupID string) error {
+	if err := a.db.DeleteQuestionGroup(groupID); err != nil {
+		return fmt.Errorf("failed to delete question group: %v", err)
+	}
+	return nil
 }

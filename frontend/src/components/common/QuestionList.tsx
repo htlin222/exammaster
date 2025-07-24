@@ -91,7 +91,9 @@ const QuestionList: React.FC<QuestionListProps> = ({
       filtered = filtered.filter(q =>
         q.question.toLowerCase().includes(lowercaseSearch) ||
         q.tags?.some(tag => tag.toLowerCase().includes(lowercaseSearch)) ||
-        q.source?.toLowerCase().includes(lowercaseSearch)
+        q.source?.toLowerCase().includes(lowercaseSearch) ||
+        q.options?.some(option => option.text.toLowerCase().includes(lowercaseSearch)) ||
+        q.explanation?.toLowerCase().includes(lowercaseSearch)
       );
     }
 
@@ -254,7 +256,7 @@ const QuestionList: React.FC<QuestionListProps> = ({
       <Row gutter={[16, 16]} align="middle">
         <Col xs={24} lg={18}>
           <Search
-            placeholder="搜尋題目內容、標籤或來源"
+            placeholder="搜尋題目、選項、解釋、標籤或來源"
             allowClear
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}

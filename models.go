@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"time"
 )
 
 // Question represents a question in the database
@@ -16,8 +15,9 @@ type Question struct {
 	ImageURL    string          `json:"imageUrl" db:"image_url"`
 	Difficulty  *int            `json:"difficulty" db:"difficulty"`
 	Source      string          `json:"source" db:"source"`
-	CreatedAt   time.Time       `json:"createdAt" db:"created_at"`
-	UpdatedAt   time.Time       `json:"updatedAt" db:"updated_at"`
+	Index       *int            `json:"index" db:"index"`
+	CreatedAt   string          `json:"createdAt" db:"created_at"`
+	UpdatedAt   string          `json:"updatedAt" db:"updated_at"`
 }
 
 // QuestionGroup represents a group of questions
@@ -29,8 +29,8 @@ type QuestionGroup struct {
 	Color       string          `json:"color" db:"color"`
 	Icon        string          `json:"icon" db:"icon"`
 	QuestionIds []string        `json:"questionIds"`
-	CreatedAt   time.Time       `json:"createdAt" db:"created_at"`
-	UpdatedAt   time.Time       `json:"updatedAt" db:"updated_at"`
+	CreatedAt   string          `json:"createdAt" db:"created_at"`
+	UpdatedAt   string          `json:"updatedAt" db:"updated_at"`
 }
 
 // QuestionGroupRelation represents the many-to-many relationship between questions and groups
@@ -44,13 +44,13 @@ type PracticeSession struct {
 	ID             string          `json:"id" db:"id"`
 	GroupID        string          `json:"groupId" db:"group_id"`
 	Mode           string          `json:"mode" db:"mode"`
-	StartTime      time.Time       `json:"startTime" db:"start_time"`
-	EndTime        *time.Time      `json:"endTime" db:"end_time"`
+	StartTime      string          `json:"startTime" db:"start_time"`
+	EndTime        *string         `json:"endTime" db:"end_time"`
 	Duration       int             `json:"duration" db:"duration"`
 	TotalQuestions int             `json:"totalQuestions" db:"total_questions"`
 	CorrectCount   int             `json:"correctCount" db:"correct_count"`
 	Details        json.RawMessage `json:"details" db:"details"`
-	CreatedAt      time.Time       `json:"createdAt" db:"created_at"`
+	CreatedAt      string          `json:"createdAt" db:"created_at"`
 }
 
 // UserSetting represents user configuration
@@ -63,8 +63,8 @@ type UserSetting struct {
 type WrongQuestion struct {
 	ID         string    `json:"id" db:"id"`
 	QuestionID string    `json:"questionId" db:"question_id"`
-	AddedAt    time.Time `json:"addedAt" db:"added_at"`
-	ReviewedAt *time.Time `json:"reviewedAt" db:"reviewed_at"`
+	AddedAt    string    `json:"addedAt" db:"added_at"`
+	ReviewedAt *string   `json:"reviewedAt" db:"reviewed_at"`
 	TimesReviewed int    `json:"timesReviewed" db:"times_reviewed"`
 	LastResult bool      `json:"lastResult" db:"last_result"`
 	Notes      string    `json:"notes" db:"notes"`

@@ -169,7 +169,9 @@ export const useQuestionStore = create<QuestionStore>((set, get) => ({
     return state.questions.filter(q => 
       q.question.toLowerCase().includes(lowercaseQuery) ||
       q.tags?.some(tag => tag.toLowerCase().includes(lowercaseQuery)) ||
-      q.source?.toLowerCase().includes(lowercaseQuery)
+      q.source?.toLowerCase().includes(lowercaseQuery) ||
+      q.options?.some(option => option.text.toLowerCase().includes(lowercaseQuery)) ||
+      q.explanation?.toLowerCase().includes(lowercaseQuery)
     );
   },
 

@@ -70,11 +70,12 @@ const AppLayout: React.FC = () => {
   const [completedSession, setCompletedSession] = useState<PracticeSession | null>(null);
   
   const { sessions } = usePracticeStore();
-  const { settings, updateSettings } = useSettingsStore();
+  const { settings, updatePendingSettings, applySettings } = useSettingsStore();
   const isDarkMode = settings.theme === 'dark';
 
-  const handleThemeChange = (isDark: boolean) => {
-    updateSettings({ theme: isDark ? 'dark' : 'light' });
+  const handleThemeChange = async (isDark: boolean) => {
+    updatePendingSettings({ theme: isDark ? 'dark' : 'light' });
+    await applySettings();
   };
 
   const renderContent = () => {

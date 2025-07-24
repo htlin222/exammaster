@@ -19,7 +19,10 @@ import {
   Modal,
   Tabs,
   List,
-  Tag
+  Tag,
+  Progress,
+  Checkbox,
+  DatePicker
 } from 'antd';
 import {
   SettingOutlined,
@@ -32,16 +35,20 @@ import {
   ImportOutlined,
   DeleteOutlined,
   ReloadOutlined,
-  ControlOutlined
+  ControlOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useQuestionStore } from '../../stores/questionStore';
 import { UserSettings } from '../../types';
-import { GetUserSettings, UpdateUserSettings, ResetAllData, ExportUserData, SaveFileToDownloads } from '../../../wailsjs/go/main/App';
+import { GetUserSettings, UpdateUserSettings, ResetAllData, ExportUserData, ExportSelectiveData, ExportGroupAsCSV, SaveFileToDownloads, ImportUserData, GetPracticeSessions } from '../../../wailsjs/go/main/App';
+import { main } from '../../../wailsjs/go/models';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 const { TabPane } = Tabs;
 const { confirm } = Modal;
+const { RangePicker } = DatePicker;
 
 interface SettingsProps {}
 
@@ -64,7 +71,6 @@ interface ExtendedUserSettings extends UserSettings {
   showDetailedStats?: boolean;
   
   // UI settings
-  autoSave?: boolean;
   showExplanations?: boolean;
   randomizeQuestions?: boolean;
   randomizeOptions?: boolean;
@@ -102,7 +108,6 @@ const defaultSettings: ExtendedUserSettings = {
   showDetailedStats: true,
   
   // UI settings
-  autoSave: true,
   showExplanations: true,
   randomizeQuestions: true,
   randomizeOptions: false,
@@ -118,72 +123,93 @@ const defaultSettings: ExtendedUserSettings = {
 };
 
 const Settings: React.FC<SettingsProps> = () => {
-  const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState<ExtendedUserSettings>(defaultSettings);
+  const { 
+    settings, 
+    pendingSettings, 
+    hasChanges, 
+    loading, 
+    updatePendingSettings, 
+    applySettings, 
+    loadSettings,
+    discardChanges,
+    resetSettings 
+  } = useSettingsStore();
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState('general');
-  const [resetModalVisible, setResetModalVisible] = useState(false);
-  const saveTimeoutRef = useRef<number>();
+  const [todayProgress, setTodayProgress] = useState({ completed: 0, goal: 20 });
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [exportOptions, setExportOptions] = useState({
+    includeQuestions: true,
+    includeGroups: true,
+    includeSessions: false,
+    includeSettings: false,
+    includeWrongQuestions: false,
+    groupIds: [] as string[],
+    dateRange: null as [string, string] | null,
+    format: 'json'
+  });
+  const [exporting, setExporting] = useState(false);
+  
+  const { groups } = useQuestionStore();
 
   useEffect(() => {
     loadSettings();
-    
-    // Cleanup function to clear timeout on unmount
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (pendingSettings.studyGoal) {
+      loadTodayProgress();
+    }
+  }, [loadSettings]);
 
-  const loadSettings = async () => {
-    setLoading(true);
+  // Update progress goal when settings change
+  useEffect(() => {
+    setTodayProgress(prev => ({ ...prev, goal: settings.studyGoal || 20 }));
+  }, [settings.studyGoal]);
+
+  const loadTodayProgress = async () => {
     try {
-      const userSettings = await GetUserSettings();
-      const loadedSettings = { ...defaultSettings, ...userSettings };
-      setSettings(loadedSettings);
-      form.setFieldsValue(loadedSettings);
+      const sessions = await GetPracticeSessions();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const todaySessions = sessions.filter(session => {
+        const sessionDate = new Date(session.createdAt);
+        sessionDate.setHours(0, 0, 0, 0);
+        return sessionDate.getTime() === today.getTime();
+      });
+      
+      const completedToday = todaySessions.reduce((sum, session) => sum + session.totalQuestions, 0);
+      setTodayProgress({ completed: completedToday, goal: pendingSettings.studyGoal || 20 });
     } catch (error) {
-      console.error('Failed to load settings:', error);
-      message.error('載入設定失敗');
-    } finally {
-      setLoading(false);
+      console.error('Failed to load today progress:', error);
     }
   };
 
-  const saveSettings = async (values: Partial<ExtendedUserSettings>, showToast = true) => {
-    setLoading(true);
+  // Update form when pendingSettings change
+  useEffect(() => {
+    form.setFieldsValue(pendingSettings);
+  }, [pendingSettings, form]);
+
+  const handleApplySettings = async () => {
     try {
-      const newSettings = { ...settings, ...values };
-      await UpdateUserSettings(newSettings);
-      setSettings(newSettings);
-      if (showToast) {
-        message.success('設定已儲存');
-      }
+      await applySettings();
+      message.success('設定已套用');
     } catch (error) {
-      console.error('Failed to save settings:', error);
-      message.error('儲存設定失敗');
-    } finally {
-      setLoading(false);
+      console.error('Failed to apply settings:', error);
+      message.error('套用設定失敗');
     }
+  };
+
+  const handleDiscardChanges = () => {
+    discardChanges();
+    form.setFieldsValue(settings);
+    message.info('變更已取消');
   };
 
 
   const handleFormChange = useCallback((changedFields: any, allFields: any) => {
-    // Auto-save settings when they change
-    if (settings.autoSave) {
-      // Clear any existing timeout
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-      
-      // Debounce the save operation
-      saveTimeoutRef.current = setTimeout(() => {
-        const values = form.getFieldsValue();
-        saveSettings(values, false); // Don't show toast for auto-save
-      }, 1000); // Wait 1 second after user stops typing
-    }
-  }, [settings.autoSave, form]);
+    // Update pending settings when form changes
+    const values = form.getFieldsValue();
+    updatePendingSettings(values);
+  }, [form, updatePendingSettings]);
 
   const handleResetData = () => {
     confirm({
@@ -221,8 +247,121 @@ const Settings: React.FC<SettingsProps> = () => {
     }
   };
 
+  const handleImportData = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        const result = await ImportUserData(data);
+        
+        if (result.success) {
+          message.success(`匯入成功！已匯入 ${result.imported} 項資料`);
+          if (result.errors.length > 0) {
+            console.warn('匯入警告:', result.errors);
+            message.warning(`有 ${result.errors.length} 項資料匯入時發生警告`);
+          }
+          // Reload to refresh all data
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          message.error('匯入失敗：' + result.errors.join(', '));
+        }
+      } catch (error) {
+        message.error('匯入失敗：檔案格式不正確或解析錯誤');
+      }
+    };
+    input.click();
+  };
+
+  const handleSelectiveExport = async () => {
+    try {
+      setExporting(true);
+      
+      // Create ExportOptions instance
+      const options = new main.ExportOptions({
+        includeQuestions: exportOptions.includeQuestions,
+        includeGroups: exportOptions.includeGroups,
+        includeSessions: exportOptions.includeSessions,
+        includeSettings: exportOptions.includeSettings,
+        includeWrongQuestions: exportOptions.includeWrongQuestions,
+        groupIds: exportOptions.groupIds,
+        dateRange: exportOptions.dateRange ? {
+          startDate: exportOptions.dateRange[0],
+          endDate: exportOptions.dateRange[1]
+        } : null,
+        format: exportOptions.format
+      });
+      
+      const data = await ExportSelectiveData(options);
+      const dataStr = JSON.stringify(data, null, 2);
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `exammaster-selective-${timestamp}.json`;
+      
+      await SaveFileToDownloads(filename, dataStr);
+      message.success('選擇性匯出完成！');
+      setExportModalVisible(false);
+    } catch (error) {
+      message.error('選擇性匯出失敗：' + (error as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportGroupAsCSV = async (groupId: string, groupName: string) => {
+    try {
+      const csvContent = await ExportGroupAsCSV(groupId);
+      const timestamp = new Date().toISOString().split('T')[0];
+      const filename = `${groupName}-${timestamp}.csv`;
+      
+      await SaveFileToDownloads(filename, csvContent);
+      message.success(`群組 "${groupName}" 已匯出為 CSV 格式`);
+    } catch (error) {
+      message.error('CSV 匯出失敗：' + (error as Error).message);
+    }
+  };
+
   const renderGeneralSettings = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
+      {/* Study Goal Progress */}
+      <Card title="今日學習進度" size="small">
+        <Row gutter={16} align="middle">
+          <Col span={16}>
+            <div style={{ marginBottom: 8 }}>
+              <Text strong>
+                {todayProgress.completed} / {todayProgress.goal} 題
+              </Text>
+              <Text type="secondary" style={{ marginLeft: 8 }}>
+                ({Math.round((todayProgress.completed / todayProgress.goal) * 100)}%)
+              </Text>
+            </div>
+            <Progress 
+              percent={Math.min((todayProgress.completed / todayProgress.goal) * 100, 100)}
+              status={todayProgress.completed >= todayProgress.goal ? 'success' : 'active'}
+              strokeColor={todayProgress.completed >= todayProgress.goal ? '#52c41a' : '#1890ff'}
+            />
+          </Col>
+          <Col span={8} style={{ textAlign: 'right' }}>
+            {todayProgress.completed >= todayProgress.goal ? (
+              <Text type="success">
+                <CheckCircleOutlined /> 目標達成！
+              </Text>
+            ) : (
+              <Text type="secondary">
+                還需 {todayProgress.goal - todayProgress.completed} 題
+              </Text>
+            )}
+          </Col>
+        </Row>
+      </Card>
+
       <Card title="個人資訊" size="small">
         <Row gutter={16}>
           <Col span={12}>
@@ -279,9 +418,6 @@ const Settings: React.FC<SettingsProps> = () => {
 
       <Card title="系統設定" size="small">
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Form.Item name="autoSave" valuePropName="checked">
-            <Switch /> 自動儲存設定
-          </Form.Item>
           <Form.Item name="saveHistory" valuePropName="checked">
             <Switch /> 儲存練習記錄
           </Form.Item>
@@ -424,9 +560,11 @@ const Settings: React.FC<SettingsProps> = () => {
       <Card title="提醒設定" size="small">
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item name="enableNotifications" valuePropName="checked">
+            {/* TODO: 實作桌面通知功能 - 需要 Web Notification API 整合 */}
             <Switch /> 啟用通知
           </Form.Item>
           <Form.Item name="dailyReminder" valuePropName="checked">
+            {/* TODO: 實作每日提醒功能 - 需要排程系統和通知觸發機制 */}
             <Switch /> 每日學習提醒
           </Form.Item>
           <Row gutter={16}>
@@ -455,15 +593,23 @@ const Settings: React.FC<SettingsProps> = () => {
           <div>
             <Title level={5}>匯出資料</Title>
             <Paragraph type="secondary">
-              將您的所有資料（題目、練習記錄、設定）匯出為JSON檔案，可用於備份或轉移。
+              將您的資料匯出為JSON或CSV檔案，可用於備份或轉移。
             </Paragraph>
-            <Button 
-              type="primary" 
-              icon={<ExportOutlined />}
-              onClick={handleExportData}
-            >
-              匯出所有資料
-            </Button>
+            <Space>
+              <Button 
+                type="primary" 
+                icon={<ExportOutlined />}
+                onClick={handleExportData}
+              >
+                匯出所有資料
+              </Button>
+              <Button 
+                icon={<ControlOutlined />}
+                onClick={() => setExportModalVisible(true)}
+              >
+                選擇性匯出
+              </Button>
+            </Space>
           </div>
 
           <Divider />
@@ -475,10 +621,43 @@ const Settings: React.FC<SettingsProps> = () => {
             </Paragraph>
             <Button 
               icon={<ImportOutlined />}
-              onClick={() => message.info('匯入功能開發中')}
+              onClick={handleImportData}
             >
               匯入資料
             </Button>
+          </div>
+
+          <Divider />
+
+          <div>
+            <Title level={5}>群組匯出 (CSV)</Title>
+            <Paragraph type="secondary">
+              將特定群組的題目匯出為 CSV 格式檔案。
+            </Paragraph>
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              <List
+                size="small"
+                dataSource={groups}
+                renderItem={(group) => (
+                  <List.Item
+                    actions={[
+                      <Button 
+                        size="small" 
+                        icon={<ExportOutlined />}
+                        onClick={() => handleExportGroupAsCSV(group.id, group.name)}
+                      >
+                        匯出 CSV
+                      </Button>
+                    ]}
+                  >
+                    <List.Item.Meta
+                      title={group.name}
+                      description={`${group.questionIds?.length || 0} 題`}
+                    />
+                  </List.Item>
+                )}
+              />
+            </div>
           </div>
 
           <Divider />
@@ -575,6 +754,87 @@ const Settings: React.FC<SettingsProps> = () => {
         </Space>
       </Card>
     </Space>
+  );
+
+  const renderSelectiveExportModal = () => (
+    <Modal
+      title="選擇性匯出"
+      open={exportModalVisible}
+      onOk={handleSelectiveExport}
+      onCancel={() => setExportModalVisible(false)}
+      confirmLoading={exporting}
+      width={600}
+      okText="開始匯出"
+      cancelText="取消"
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <div>
+          <Title level={5}>匯出內容</Title>
+          <Checkbox.Group
+            value={Object.keys(exportOptions).filter(key => 
+              exportOptions[key as keyof typeof exportOptions] === true
+            )}
+            onChange={(values) => {
+              setExportOptions(prev => ({
+                ...prev,
+                includeQuestions: values.includes('includeQuestions'),
+                includeGroups: values.includes('includeGroups'),
+                includeSessions: values.includes('includeSessions'),
+                includeSettings: values.includes('includeSettings'),
+                includeWrongQuestions: values.includes('includeWrongQuestions')
+              }));
+            }}
+          >
+            <Space direction="vertical">
+              <Checkbox value="includeQuestions">題目資料</Checkbox>
+              <Checkbox value="includeGroups">群組資料</Checkbox>
+              <Checkbox value="includeSessions">練習記錄</Checkbox>
+              <Checkbox value="includeWrongQuestions">錯題記錄</Checkbox>
+              <Checkbox value="includeSettings">使用者設定</Checkbox>
+            </Space>
+          </Checkbox.Group>
+        </div>
+
+        <div>
+          <Title level={5}>群組篩選</Title>
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="選擇特定群組（留空表示全部）"
+            value={exportOptions.groupIds}
+            onChange={(values) => setExportOptions(prev => ({ ...prev, groupIds: values }))}
+            allowClear
+          >
+            {groups.map(group => (
+              <Option key={group.id} value={group.id}>
+                {group.name} ({group.questionIds?.length || 0} 題)
+              </Option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
+          <Title level={5}>日期範圍</Title>
+          <RangePicker
+            style={{ width: '100%' }}
+            placeholder={['開始日期', '結束日期']}
+            onChange={(dates, dateStrings) => {
+              setExportOptions(prev => ({
+                ...prev,
+                dateRange: dates ? [dateStrings[0], dateStrings[1]] : null
+              }));
+            }}
+          />
+        </div>
+
+        <Alert
+          message="匯出說明"
+          description="選擇性匯出可以讓您匯出特定的資料內容、群組或時間範圍。匯出的檔案會以 JSON 格式儲存。"
+          type="info"
+          showIcon
+        />
+      </Space>
+    </Modal>
   );
 
   return (
@@ -711,27 +971,35 @@ const Settings: React.FC<SettingsProps> = () => {
           </Tabs>
         </Form>
 
-        {!settings.autoSave && (
+        {hasChanges && (
           <div style={{ 
-            position: 'absolute', 
+            position: 'fixed', 
             bottom: 24, 
             right: 24,
-            zIndex: 1000
+            zIndex: 1000,
+            display: 'flex',
+            gap: 8
           }}>
+            <Button 
+              size="large"
+              onClick={handleDiscardChanges}
+              disabled={loading}
+            >
+              取消變更
+            </Button>
             <Button 
               type="primary" 
               size="large"
               loading={loading}
-              onClick={() => {
-                const values = form.getFieldsValue();
-                saveSettings(values);
-              }}
+              onClick={handleApplySettings}
             >
-              儲存設定
+              套用設定
             </Button>
           </div>
         )}
       </div>
+      
+      {renderSelectiveExportModal()}
     </div>
   );
 };

@@ -24,13 +24,21 @@ interface ExtendedSettings extends UserSettings {
   randomizeOptions?: boolean;
   showProgress?: boolean;
   highlightCorrectAnswers?: boolean;
+  
+  // Study settings
+  studyGoal?: number;
 }
 
 interface SettingsStore {
   settings: ExtendedSettings;
-  updateSettings: (settings: Partial<ExtendedSettings>) => Promise<void>;
+  pendingSettings: ExtendedSettings;
+  hasChanges: boolean;
+  loading: boolean;
+  updatePendingSettings: (settings: Partial<ExtendedSettings>) => void;
+  applySettings: () => Promise<void>;
   loadSettings: () => Promise<void>;
   resetSettings: () => void;
+  discardChanges: () => void;
 }
 
 const defaultSettings: ExtendedSettings = {
@@ -58,39 +66,87 @@ const defaultSettings: ExtendedSettings = {
   randomizeQuestions: true,
   randomizeOptions: false,
   showProgress: true,
-  highlightCorrectAnswers: true
+  highlightCorrectAnswers: true,
+  
+  // Study settings
+  studyGoal: 20
 };
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set, get) => ({
       settings: defaultSettings,
+      pendingSettings: defaultSettings,
+      hasChanges: false,
+      loading: false,
 
-      updateSettings: async (settingsUpdate) => {
-        const newSettings = { ...get().settings, ...settingsUpdate };
+      updatePendingSettings: (settingsUpdate) => {
+        const currentPending = get().pendingSettings;
+        const newPendingSettings = { ...currentPending, ...settingsUpdate };
+        const hasChanges = JSON.stringify(newPendingSettings) !== JSON.stringify(get().settings);
+        
+        set({ 
+          pendingSettings: newPendingSettings,
+          hasChanges
+        });
+      },
+
+      applySettings: async () => {
+        const { pendingSettings } = get();
+        set({ loading: true });
         
         try {
-          await UpdateUserSettings(newSettings);
-          set({ settings: newSettings });
+          await UpdateUserSettings(pendingSettings);
+          set({ 
+            settings: pendingSettings,
+            hasChanges: false,
+            loading: false
+          });
         } catch (error) {
-          console.error('Failed to update settings:', error);
+          console.error('Failed to apply settings:', error);
+          set({ loading: false });
           throw error;
         }
       },
 
       loadSettings: async () => {
+        set({ loading: true });
         try {
           const backendSettings = await GetUserSettings();
           const mergedSettings = { ...defaultSettings, ...backendSettings };
-          set({ settings: mergedSettings });
+          set({ 
+            settings: mergedSettings,
+            pendingSettings: mergedSettings,
+            hasChanges: false,
+            loading: false
+          });
         } catch (error) {
           console.error('Failed to load settings:', error);
           // Use default settings if backend fails
-          set({ settings: defaultSettings });
+          set({ 
+            settings: defaultSettings,
+            pendingSettings: defaultSettings,
+            hasChanges: false,
+            loading: false
+          });
         }
       },
 
-      resetSettings: () => set({ settings: defaultSettings })
+      discardChanges: () => {
+        const { settings } = get();
+        set({
+          pendingSettings: settings,
+          hasChanges: false
+        });
+      },
+
+      resetSettings: () => {
+        set({ 
+          settings: defaultSettings,
+          pendingSettings: defaultSettings,
+          hasChanges: false
+        });
+      }
     }),
     {
       name: 'exammaster-settings'

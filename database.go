@@ -66,6 +66,7 @@ func (d *Database) migrate() error {
 			image_url TEXT,
 			difficulty INTEGER,
 			source TEXT,
+			[index] INTEGER,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
@@ -128,13 +129,40 @@ func (d *Database) migrate() error {
 		}
 	}
 
+	// Add index column migration safely
+	if err := d.addIndexColumnIfNotExists(); err != nil {
+		return fmt.Errorf("failed to add index column: %v", err)
+	}
+
 	return nil
+}
+
+// addIndexColumnIfNotExists safely adds the index column if it doesn't exist
+func (d *Database) addIndexColumnIfNotExists() error {
+	// Check if index column exists by attempting to query it
+	_, err := d.db.Exec("SELECT [index] FROM questions LIMIT 1")
+	if err != nil {
+		// Column doesn't exist, add it
+		_, err = d.db.Exec("ALTER TABLE questions ADD COLUMN [index] INTEGER DEFAULT NULL")
+		if err != nil {
+			return fmt.Errorf("failed to add index column: %v", err)
+		}
+	}
+	return nil
+}
+
+// handleNullJSON safely handles NULL JSON fields by providing default values
+func handleNullJSON(nullStr sql.NullString, defaultValue string) json.RawMessage {
+	if nullStr.Valid && nullStr.String != "" {
+		return json.RawMessage(nullStr.String)
+	}
+	return json.RawMessage(defaultValue)
 }
 
 // Questions methods
 func (d *Database) CreateQuestion(question *Question) error {
-	query := `INSERT INTO questions (id, question, options, answer, explanation, tags, image_url, difficulty, source, created_at, updated_at)
-			  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO questions (id, question, options, answer, explanation, tags, image_url, difficulty, source, [index], created_at, updated_at)
+			  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	
 	_, err := d.db.Exec(query,
 		question.ID,
@@ -146,6 +174,7 @@ func (d *Database) CreateQuestion(question *Question) error {
 		question.ImageURL,
 		question.Difficulty,
 		question.Source,
+		question.Index,
 		question.CreatedAt,
 		question.UpdatedAt,
 	)
@@ -153,7 +182,7 @@ func (d *Database) CreateQuestion(question *Question) error {
 }
 
 func (d *Database) GetQuestions() ([]Question, error) {
-	query := `SELECT id, question, options, answer, explanation, tags, image_url, difficulty, source, created_at, updated_at FROM questions ORDER BY created_at DESC`
+	query := `SELECT id, question, options, answer, explanation, tags, image_url, difficulty, source, [index], created_at, updated_at FROM questions ORDER BY created_at DESC`
 	
 	rows, err := d.db.Query(query)
 	if err != nil {
@@ -164,19 +193,26 @@ func (d *Database) GetQuestions() ([]Question, error) {
 	var questions []Question
 	for rows.Next() {
 		var q Question
+		var options, answer, tags sql.NullString
 		err := rows.Scan(
 			&q.ID,
 			&q.Question,
-			&q.Options,
-			&q.Answer,
+			&options,
+			&answer,
 			&q.Explanation,
-			&q.Tags,
+			&tags,
 			&q.ImageURL,
 			&q.Difficulty,
 			&q.Source,
+			&q.Index,
 			&q.CreatedAt,
 			&q.UpdatedAt,
 		)
+		
+		// Handle NULL JSON fields
+		q.Options = handleNullJSON(options, `[]`)
+		q.Answer = handleNullJSON(answer, `[]`)
+		q.Tags = handleNullJSON(tags, `[]`)
 		if err != nil {
 			return nil, err
 		}
@@ -186,11 +222,11 @@ func (d *Database) GetQuestions() ([]Question, error) {
 }
 
 func (d *Database) GetQuestionsByGroup(groupID string) ([]Question, error) {
-	query := `SELECT q.id, q.question, q.options, q.answer, q.explanation, q.tags, q.image_url, q.difficulty, q.source, q.created_at, q.updated_at
+	query := `SELECT q.id, q.question, q.options, q.answer, q.explanation, q.tags, q.image_url, q.difficulty, q.source, q.[index], q.created_at, q.updated_at
 			  FROM questions q
 			  JOIN question_group_relations qgr ON q.id = qgr.question_id
 			  WHERE qgr.group_id = ?
-			  ORDER BY q.created_at DESC`
+			  ORDER BY COALESCE(q.[index], 999999), q.created_at DESC`
 	
 	rows, err := d.db.Query(query, groupID)
 	if err != nil {
@@ -201,19 +237,26 @@ func (d *Database) GetQuestionsByGroup(groupID string) ([]Question, error) {
 	var questions []Question
 	for rows.Next() {
 		var q Question
+		var options, answer, tags sql.NullString
 		err := rows.Scan(
 			&q.ID,
 			&q.Question,
-			&q.Options,
-			&q.Answer,
+			&options,
+			&answer,
 			&q.Explanation,
-			&q.Tags,
+			&tags,
 			&q.ImageURL,
 			&q.Difficulty,
 			&q.Source,
+			&q.Index,
 			&q.CreatedAt,
 			&q.UpdatedAt,
 		)
+		
+		// Handle NULL JSON fields
+		q.Options = handleNullJSON(options, `[]`)
+		q.Answer = handleNullJSON(answer, `[]`)
+		q.Tags = handleNullJSON(tags, `[]`)
 		if err != nil {
 			return nil, err
 		}
@@ -224,25 +267,32 @@ func (d *Database) GetQuestionsByGroup(groupID string) ([]Question, error) {
 
 // GetQuestionByID returns a single question by ID
 func (d *Database) GetQuestionByID(questionID string) (*Question, error) {
-	query := `SELECT id, question, options, answer, explanation, tags, image_url, difficulty, source, created_at, updated_at
+	query := `SELECT id, question, options, answer, explanation, tags, image_url, difficulty, source, [index], created_at, updated_at
 			  FROM questions WHERE id = ?`
 	
 	row := d.db.QueryRow(query, questionID)
 	
 	var q Question
+	var options, answer, tags sql.NullString
 	err := row.Scan(
 		&q.ID,
 		&q.Question,
-		&q.Options,
-		&q.Answer,
+		&options,
+		&answer,
 		&q.Explanation,
-		&q.Tags,
+		&tags,
 		&q.ImageURL,
 		&q.Difficulty,
 		&q.Source,
+		&q.Index,
 		&q.CreatedAt,
 		&q.UpdatedAt,
 	)
+	
+	// Handle NULL JSON fields
+	q.Options = handleNullJSON(options, `[]`)
+	q.Answer = handleNullJSON(answer, `[]`)
+	q.Tags = handleNullJSON(tags, `[]`)
 	if err != nil {
 		return nil, err
 	}
@@ -250,11 +300,32 @@ func (d *Database) GetQuestionByID(questionID string) (*Question, error) {
 	return &q, nil
 }
 
+// UpdateQuestion updates a question's information
+func (d *Database) UpdateQuestion(question *Question) error {
+	query := `UPDATE questions SET question = ?, options = ?, answer = ?, explanation = ?, 
+			  tags = ?, image_url = ?, difficulty = ?, source = ?, [index] = ?, updated_at = ? WHERE id = ?`
+	
+	_, err := d.db.Exec(query,
+		question.Question,
+		question.Options,
+		question.Answer,
+		question.Explanation,
+		question.Tags,
+		question.ImageURL,
+		question.Difficulty,
+		question.Source,
+		question.Index,
+		question.UpdatedAt,
+		question.ID,
+	)
+	return err
+}
+
 // UpdateQuestionDifficulty updates the difficulty of a specific question
 func (d *Database) UpdateQuestionDifficulty(questionID string, difficulty *int) error {
 	query := `UPDATE questions SET difficulty = ?, updated_at = ? WHERE id = ?`
 	
-	_, err := d.db.Exec(query, difficulty, time.Now(), questionID)
+	_, err := d.db.Exec(query, difficulty, time.Now().Format(time.RFC3339), questionID)
 	return err
 }
 
@@ -329,6 +400,22 @@ func (d *Database) GetQuestionGroups() ([]QuestionGroup, error) {
 func (d *Database) AddQuestionToGroup(groupID, questionID string) error {
 	query := `INSERT OR IGNORE INTO question_group_relations (group_id, question_id) VALUES (?, ?)`
 	_, err := d.db.Exec(query, groupID, questionID)
+	return err
+}
+
+// UpdateQuestionGroup updates a question group's information
+func (d *Database) UpdateQuestionGroup(group *QuestionGroup) error {
+	query := `UPDATE question_groups SET name = ?, description = ?, parent_id = ?, color = ?, icon = ?, updated_at = ? WHERE id = ?`
+	
+	_, err := d.db.Exec(query,
+		group.Name,
+		group.Description,
+		group.ParentID,
+		group.Color,
+		group.Icon,
+		group.UpdatedAt,
+		group.ID,
+	)
 	return err
 }
 
@@ -515,6 +602,7 @@ func (d *Database) GetWrongQuestionsWithDetails() ([]map[string]interface{}, err
 	for rows.Next() {
 		var wq WrongQuestion
 		var q Question
+		var options, answer, tags sql.NullString
 		err := rows.Scan(
 			&wq.ID,
 			&wq.QuestionID,
@@ -524,14 +612,19 @@ func (d *Database) GetWrongQuestionsWithDetails() ([]map[string]interface{}, err
 			&wq.LastResult,
 			&wq.Notes,
 			&q.Question,
-			&q.Options,
-			&q.Answer,
+			&options,
+			&answer,
 			&q.Explanation,
-			&q.Tags,
+			&tags,
 			&q.ImageURL,
 			&q.Difficulty,
 			&q.Source,
 		)
+		
+		// Handle NULL JSON fields
+		q.Options = handleNullJSON(options, `[]`)
+		q.Answer = handleNullJSON(answer, `[]`)
+		q.Tags = handleNullJSON(tags, `[]`)
 		if err != nil {
 			return nil, err
 		}
@@ -560,7 +653,7 @@ func (d *Database) UpdateWrongQuestionReview(questionID string, isCorrect bool, 
 			  SET reviewed_at = ?, times_reviewed = times_reviewed + 1, last_result = ?, notes = ?
 			  WHERE question_id = ?`
 	
-	_, err := d.db.Exec(query, time.Now(), isCorrect, notes, questionID)
+	_, err := d.db.Exec(query, time.Now().Format(time.RFC3339), isCorrect, notes, questionID)
 	return err
 }
 

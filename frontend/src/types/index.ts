@@ -16,6 +16,7 @@ export interface Question {
   imageUrl?: string;
   difficulty?: 1 | 2 | 3 | 4 | 5;
   source?: string;
+  index?: number;
   createdAt: string;
   updatedAt: string;
 }

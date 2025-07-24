@@ -18,8 +18,28 @@ export function CreatePracticeSession(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreatePracticeSession'](arg1, arg2, arg3);
 }
 
+export function CreateQuestion(arg1) {
+  return window['go']['main']['App']['CreateQuestion'](arg1);
+}
+
 export function CreateQuestionGroup(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['CreateQuestionGroup'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function DeleteQuestion(arg1) {
+  return window['go']['main']['App']['DeleteQuestion'](arg1);
+}
+
+export function DeleteQuestionGroup(arg1) {
+  return window['go']['main']['App']['DeleteQuestionGroup'](arg1);
+}
+
+export function ExportGroupAsCSV(arg1) {
+  return window['go']['main']['App']['ExportGroupAsCSV'](arg1);
+}
+
+export function ExportSelectiveData(arg1) {
+  return window['go']['main']['App']['ExportSelectiveData'](arg1);
 }
 
 export function ExportUserData() {
@@ -28,6 +48,10 @@ export function ExportUserData() {
 
 export function GetPracticeSessions() {
   return window['go']['main']['App']['GetPracticeSessions']();
+}
+
+export function GetQuestionByID(arg1) {
+  return window['go']['main']['App']['GetQuestionByID'](arg1);
 }
 
 export function GetQuestionGroups() {
@@ -50,6 +74,10 @@ export function GetUserSettings() {
   return window['go']['main']['App']['GetUserSettings']();
 }
 
+export function GetWeakestTopics() {
+  return window['go']['main']['App']['GetWeakestTopics']();
+}
+
 export function GetWrongQuestions() {
   return window['go']['main']['App']['GetWrongQuestions']();
 }
@@ -68,6 +96,14 @@ export function Greet(arg1) {
 
 export function ImportQuestions(arg1, arg2) {
   return window['go']['main']['App']['ImportQuestions'](arg1, arg2);
+}
+
+export function ImportQuestionsFromCSV(arg1, arg2) {
+  return window['go']['main']['App']['ImportQuestionsFromCSV'](arg1, arg2);
+}
+
+export function ImportUserData(arg1) {
+  return window['go']['main']['App']['ImportUserData'](arg1);
 }
 
 export function InitializeDemoData() {
@@ -100,6 +136,14 @@ export function SetUserSetting(arg1, arg2) {
 
 export function ToggleWrongQuestion(arg1, arg2) {
   return window['go']['main']['App']['ToggleWrongQuestion'](arg1, arg2);
+}
+
+export function UpdateQuestion(arg1) {
+  return window['go']['main']['App']['UpdateQuestion'](arg1);
+}
+
+export function UpdateQuestionGroup(arg1) {
+  return window['go']['main']['App']['UpdateQuestionGroup'](arg1);
 }
 
 export function UpdateUserSettings(arg1) {
